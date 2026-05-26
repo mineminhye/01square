@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시작의 광장 - Square of Beginnings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 2rem;
+        }
+
+        .active { display: flex; }
+
+        #game-container {
+            position: relative;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            color: #0f172a;
+        }
+
+        canvas#gameCanvas {
+            border: 2px solid #334155;
+            cursor: crosshair;
+            background-image: 
+                linear-gradient(rgba(203, 213, 225, 0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(203, 213, 225, 0.5) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            right: -240px;
+            width: 220px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .tablet-piece {
+            width: 120px;
+            height: 120px;
+            background: conic-gradient(#38bdf8 0deg, #38bdf8 36deg, #1e293b 36deg, #1e293b 360deg);
+            border-radius: 50%;
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.5);
+            border: 2px solid #38bdf8;
+        }
+
+        #video-canvas {
+            background: #000;
+            border-radius: 1rem;
+            box-shadow: 0 0 50px rgba(56, 189, 248, 0.2);
+        }
+
+        .btn-main {
+            transition: all 0.3s ease;
+        }
+        .btn-main:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 마을 첫 화면 (Square Intro) -->
+    <div id="screen-intro" class="screen active">
+        <div class="mb-4 text-sky-500 font-bold tracking-widest uppercase text-sm">Stage 01</div>
+        <h1 class="text-6xl font-black text-white mb-8 tracking-tighter">시작의 광장</h1>
+        
+        <div class="max-w-2xl bg-slate-800/50 p-8 rounded-[2rem] border border-sky-500/30 backdrop-blur-md text-center mb-10">
+            <p class="text-xl leading-relaxed break-keep text-slate-200">
+                용사여, 이곳은 원의 기초가 세워진 '시작의 광장'입니다.<br>
+                뒤틀린 공간을 정화하여 원의 정의를 증명하고,<br>
+                성스러운 석판의 첫 번째 조각을 획득하십시오.
+            </p>
+        </div>
+
+        <div class="flex flex-col gap-4 w-full max-w-xs">
+            <button onclick="showScreen('game')" class="btn-main px-8 py-5 bg-sky-600 text-white rounded-2xl text-xl font-bold shadow-xl flex items-center justify-center gap-3">
+                <span>⚔️</span> 시련 도전하기
+            </button>
+            <button id="btn-intro-video" onclick="showScreen('video')" class="btn-main px-8 py-5 bg-slate-700 text-slate-200 rounded-2xl text-xl font-bold border border-slate-600 flex items-center justify-center gap-3">
+                <span>🎬</span> 석판의 지식 보기
+            </button>
+        </div>
+        
+        <button onclick="alert('월드맵으로 돌아갑니다.')" class="mt-12 text-slate-500 hover:text-slate-300 transition-colors text-sm underline">
+            전체 지도로 돌아가기
+        </button>
+    </div>
+
+    <!-- 2. 게임 화면 -->
+    <div id="screen-game" class="screen">
+        <div id="game-container">
+            <div class="mb-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">시작의 광장</h1>
+                    <p class="text-[10px] text-slate-400 italic">"원은 한 정점으로부터 같은 거리에 있는 점들의 집합"</p>
+                </div>
+                <div id="turn-badge" class="px-4 py-1 rounded-full font-bold text-white bg-green-500 text-sm">
+                    용사의 턴
+                </div>
+            </div>
+
+            <div class="relative">
+                <canvas id="gameCanvas" width="600" height="600"></canvas>
+                
+                <div class="ui-panel">
+                    <h2 class="font-bold text-slate-700 mb-2 text-sm">영토 현황</h2>
+                    <div class="space-y-2 text-[11px]">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-[rgba(34,197,94,0.45)] border border-green-600"></div>
+                            <span>용사 (2, 2)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-[rgba(234,179,8,0.45)] border border-yellow-700"></div>
+                            <span>AI (18, 18)</span>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h3 class="font-bold text-slate-700 text-[10px] uppercase mb-2">조작 가이드</h3>
+                    <ul class="text-[10px] text-slate-500 space-y-1 list-disc list-inside">
+                        <li>내 영역 클릭: <b>중심</b></li>
+                        <li>마우스 이동: <b>반지름</b></li>
+                        <li><b>더블 클릭</b>: <b>완성</b></li>
+                    </ul>
+
+                    <div id="status-msg" class="status-msg bg-slate-50 p-2 rounded border border-slate-100 text-[10px] mt-4">
+                        중심을 선택하세요.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 승리 모달 -->
+        <div id="victoryModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+            <div class="bg-white p-10 rounded-[3rem] text-center max-w-sm shadow-2xl text-slate-900 scale-in">
+                <div class="text-6xl mb-6">🏆</div>
+                <h2 class="text-4xl font-black text-slate-800 mb-2 tracking-tighter">시련 극복!</h2>
+                <p class="text-sm text-slate-600 mb-8 break-keep">원의 정의를 증명하여 첫 번째 석판을 얻었습니다.</p>
+                
+                <div class="mb-10">
+                    <div class="tablet-piece flex items-center justify-center">
+                        <span class="text-sky-100 font-bold text-xs">36°</span>
+                    </div>
+                    <p class="text-[10px] text-sky-600 font-bold mt-4 uppercase tracking-widest">Definition of Circle</p>
+                </div>
+
+                <button id="btn-back-to-square" class="w-full py-5 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold text-xl transition-all shadow-lg shadow-sky-200">
+                    광장으로
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 영상 화면 -->
+    <div id="screen-video" class="screen">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-sky-400 mb-2">석판의 지식 활성화</h2>
+            <p class="text-slate-400">원의 정의(Definition of Circle)에 대하여</p>
+        </div>
+        <canvas id="video-canvas" width="800" height="450"></canvas>
+        <button id="btn-video-done" class="mt-10 px-10 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-full font-bold opacity-0 transition-opacity duration-1000">
+            광장으로 돌아가기
+        </button>
+    </div>
+
+    <script>
+        // --- 전역 상태 ---
+        let isCleared = false;
+
+        // --- 화면 관리 ---
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${screenId}`).classList.add('active');
+            
+            if (screenId === 'game') initGame();
+            if (screenId === 'video') playManimAnimation();
+            
+            // 영상 보기 버튼 활성화 상태 업데이트
+            const videoBtn = document.getElementById('btn-intro-video');
+            if (isCleared) {
+                videoBtn.classList.remove('btn-disabled');
+                videoBtn.innerText = "🎬 석판의 지식 보기 (완료)";
+            }
+        }
+
+        // --- 게임 로직 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const cellSize = 30;
+
+        let circles = [], swamps = [], currentTurn = 'player', gameState = 'SELECT_CENTER', selectedCenter = null, previewRadius = 0, isGameOver = false;
+
+        function initGame() {
+            circles = [
+                { mx: 2, my: 2, r: 1.2, owner: 'player', isBase: true },
+                { mx: 18, my: 18, r: 1.2, owner: 'ai', isBase: true }
+            ];
+            generateSwamps();
+            currentTurn = 'player';
+            gameState = 'SELECT_CENTER';
+            isGameOver = false;
+            document.getElementById('victoryModal').classList.add('hidden');
+            render();
+        }
+
+        function generateSwamps() {
+            swamps = [];
+            for(let i=0; i<3; i++) {
+                const rx = Math.floor(Math.random() * 6) + 7;
+                const ry = Math.floor(Math.random() * 6) + 7;
+                swamps.push({ mx: rx, my: ry, mw: 2, mh: 2 });
+            }
+        }
+
+        const getDist = (x1, y1, x2, y2) => Math.sqrt((x1-x2)**2 + (y1-y2)**2);
+        const mathToCanvas = (mx, my) => ({ x: mx * cellSize, y: (20 - my) * cellSize });
+        const canvasToMath = (cx, cy) => ({ mx: Math.round(cx / cellSize), my: Math.round(20 - cy / cellSize) });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (currentTurn !== 'player' || isGameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const { mx, my } = canvasToMath(e.clientX - rect.left, e.clientY - rect.top);
+            if (gameState === 'SELECT_CENTER' && circles.some(c => c.owner === 'player' && getDist(mx, my, c.mx, c.my) <= c.r)) {
+                selectedCenter = { mx, my };
+                gameState = 'SELECT_RADIUS';
+                document.getElementById('status-msg').innerText = "반지름 조절 중... 더블 클릭하여 확정!";
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameState === 'SELECT_RADIUS') {
+                const rect = canvas.getBoundingClientRect();
+                const fx = (e.clientX - rect.left) / cellSize;
+                const fy = 20 - (e.clientY - rect.top) / cellSize;
+                previewRadius = getDist(selectedCenter.mx, selectedCenter.my, fx, fy);
+                render();
+            }
+        });
+
+        canvas.addEventListener('dblclick', () => {
+            if (gameState === 'SELECT_RADIUS' && !isGameOver) {
+                const newCircle = { mx: selectedCenter.mx, my: selectedCenter.my, r: previewRadius, owner: 'player' };
+                circles.push(newCircle);
+                circles.forEach(c => { if(c.owner === 'ai' && getDist(c.mx, c.my, newCircle.mx, newCircle.my) <= newCircle.r) c.owner = 'player'; });
+                
+                if (circles.find(c => c.isBase && c.mx === 18).owner === 'player') {
+                    endGame();
+                } else {
+                    currentTurn = 'ai';
+                    document.getElementById('turn-badge').innerText = "AI 생각 중...";
+                    setTimeout(aiMove, 1000);
+                }
+                gameState = 'SELECT_CENTER';
+                render();
+            }
+        });
+
+        function aiMove() {
+            if (isGameOver) return;
+            // 매우 쉬운 AI: 플레이어 근처가 아닌 곳에 작은 원 생성
+            circles.push({ mx: 15 + Math.random()*2, my: 15 + Math.random()*2, r: 0.8, owner: 'ai' });
+            currentTurn = 'player';
+            document.getElementById('turn-badge').innerText = "용사의 턴";
+            render();
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, 600, 600);
+            swamps.forEach(s => { ctx.fillStyle='#475569'; const p = mathToCanvas(s.mx, s.my+s.mh); ctx.fillRect(p.x, p.y, s.mw*cellSize, s.mh*cellSize); });
+            circles.forEach(c => {
+                const p = mathToCanvas(c.mx, c.my);
+                ctx.beginPath(); ctx.arc(p.x, p.y, c.r*cellSize, 0, Math.PI*2);
+                ctx.fillStyle = c.owner === 'player' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)';
+                ctx.fill(); ctx.strokeStyle = c.owner === 'player' ? '#166534' : '#854d0e'; ctx.stroke();
+                ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fillStyle='black'; ctx.fill();
+            });
+            if (gameState === 'SELECT_RADIUS' && selectedCenter) {
+                const p = mathToCanvas(selectedCenter.mx, selectedCenter.my);
+                ctx.beginPath(); ctx.setLineDash([5,5]); ctx.arc(p.x, p.y, previewRadius*cellSize, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+            }
+        }
+
+        function endGame() {
+            isGameOver = true;
+            isCleared = true;
+            document.getElementById('victoryModal').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-back-to-square').onclick = () => showScreen('intro');
+
+        // --- Manim 스타일 영상 로직 ---
+        const vCanvas = document.getElementById('video-canvas');
+        const vCtx = vCanvas.getContext('2d');
+        let aniFrame;
+
+        function playManimAnimation() {
+            let startTime = null;
+            function animate(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                vCtx.fillStyle = '#000'; vCtx.fillRect(0, 0, 800, 450);
+
+                const cx = 400, cy = 225, r = 130;
+                // 1. 중심 O (0.5s)
+                if (elapsed > 500) {
+                    vCtx.beginPath(); vCtx.arc(cx, cy, 4, 0, Math.PI*2); vCtx.fillStyle='white'; vCtx.fill();
+                    vCtx.font = "20px serif"; vCtx.fillText("O (중심)", cx + 15, cy - 10);
+                }
+                // 2. 반지름 r (1.5s)
+                if (elapsed > 1500) {
+                    const p = Math.min((elapsed - 1500) / 1000, 1);
+                    vCtx.strokeStyle = 'white'; vCtx.lineWidth = 1;
+                    vCtx.beginPath(); vCtx.moveTo(cx, cy); vCtx.lineTo(cx + r*p, cy); vCtx.stroke();
+                    vCtx.fillText("r (반지름)", cx + (r*p)/2, cy - 15);
+                }
+                // 3. 원 그리기 (2.5s)
+                if (elapsed > 2500) {
+                    const p = Math.min((elapsed - 2500) / 2000, 1);
+                    vCtx.beginPath(); vCtx.arc(cx, cy, r, 0, Math.PI*2*p);
+                    vCtx.strokeStyle = '#38bdf8'; vCtx.lineWidth = 4; vCtx.stroke();
+                }
+                // 4. 자막 (5s)
+                if (elapsed > 5000) {
+                    vCtx.fillStyle = 'white'; vCtx.textAlign = 'center'; vCtx.font = "22px 'Noto Sans KR'";
+                    vCtx.fillText("원: 한 점(중심)에서 같은 거리(반지름)에 있는 점들의 집합", 400, 410);
+                    document.getElementById('btn-video-done').style.opacity = 1;
+                }
+                aniFrame = requestAnimationFrame(animate);
+            }
+            aniFrame = requestAnimationFrame(animate);
+        }
+
+        document.getElementById('btn-video-done').onclick = () => {
+            cancelAnimationFrame(aniFrame);
+            showScreen('intro');
+        };
+
+    </script>
+</body>
+</html>
