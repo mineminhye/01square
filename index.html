@@ -113,7 +113,7 @@
                 <span>⚔️</span> 시련 도전하기
             </button>
             <button id="btn-intro-video" onclick="showScreen('video')" class="btn-main px-8 py-5 bg-slate-700 text-slate-200 rounded-2xl text-xl font-bold border border-slate-600 flex items-center justify-center gap-3">
-                <span>🎬</span> 석판의 지식 보기
+                <span>📖</span> 지혜의 석판 읽기
             </button>
         </div>
         
@@ -180,8 +180,8 @@
                     <p class="text-[10px] text-sky-600 font-bold mt-4 uppercase tracking-widest">Definition of Circle</p>
                 </div>
 
-                <button id="btn-back-to-square" class="w-full py-5 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold text-xl transition-all shadow-lg shadow-sky-200">
-                    광장으로
+                <button id="btn-back-to-square" class="w-full py-5 bg-gradient-to-r from-purple-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white rounded-2xl font-bold text-xl transition-all shadow-lg shadow-purple-400/50">
+                    🗺️ 모험의 지도 펼치기
                 </button>
             </div>
         </div>
@@ -215,7 +215,7 @@
             const videoBtn = document.getElementById('btn-intro-video');
             if (isCleared) {
                 videoBtn.classList.remove('btn-disabled');
-                videoBtn.innerText = "🎬 석판의 지식 보기 (완료)";
+                videoBtn.innerText = "📖 지혜의 석판 읽기 (완료)";
             }
         }
 
