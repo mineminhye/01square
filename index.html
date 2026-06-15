@@ -91,6 +91,13 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /* 테두리 스타일 */
+        .border-fancy {
+            border: 3px solid;
+            border-image: linear-gradient(135deg, #38bdf8, #06b6d4, #0891b2) 1;
+            border-radius: 20px;
+        }
     </style>
 </head>
 <body>
@@ -100,7 +107,7 @@
         <div class="mb-4 text-sky-500 font-bold tracking-widest uppercase text-sm">Stage 01</div>
         <h1 class="text-6xl font-black text-white mb-8 tracking-tighter">시작의 광장</h1>
         
-        <div class="max-w-2xl bg-slate-800/50 p-8 rounded-[2rem] border border-sky-500/30 backdrop-blur-md text-center mb-10">
+        <div class="max-w-2xl bg-slate-800/50 p-8 rounded-[2rem] border-fancy backdrop-blur-md text-center mb-10">
             <p class="text-xl leading-relaxed break-keep text-slate-200">
                 용사여, 이곳은 원의 기초가 세워진 '시작의 광장'입니다.<br>
                 뒤틀린 공간을 정화하여 원의 정의를 증명하고,<br>
@@ -117,8 +124,8 @@
             </button>
         </div>
         
-        <button onclick="alert('월드맵으로 돌아갑니다.')" class="mt-12 text-slate-500 hover:text-slate-300 transition-colors text-sm underline">
-            전체 지도로 돌아가기
+        <button onclick="goToWorldMap()" class="mt-12 text-slate-500 hover:text-slate-300 transition-colors text-sm underline">
+            🗺️ 모험의 지도 펼치기
         </button>
     </div>
 
@@ -168,7 +175,7 @@
 
         <!-- 승리 모달 -->
         <div id="victoryModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-            <div class="bg-white p-10 rounded-[3rem] text-center max-w-sm shadow-2xl text-slate-900 scale-in">
+            <div class="bg-white p-10 rounded-[3rem] text-center max-w-sm shadow-2xl text-slate-900 border-4 border-sky-400">
                 <div class="text-6xl mb-6">🏆</div>
                 <h2 class="text-4xl font-black text-slate-800 mb-2 tracking-tighter">시련 극복!</h2>
                 <p class="text-sm text-slate-600 mb-8 break-keep">원의 정의를 증명하여 첫 번째 석판을 얻었습니다.</p>
@@ -180,9 +187,17 @@
                     <p class="text-[10px] text-sky-600 font-bold mt-4 uppercase tracking-widest">Definition of Circle</p>
                 </div>
 
-                <button id="btn-back-to-square" class="w-full py-5 bg-gradient-to-r from-purple-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white rounded-2xl font-bold text-xl transition-all shadow-lg shadow-purple-400/50">
-                    🗺️ 모험의 지도 펼치기
-                </button>
+                <div class="space-y-3">
+                    <button onclick="window.open('https://www.youtube.com/', '_blank')" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-lg transition-all shadow-lg flex items-center justify-center gap-2">
+                        <span>📺</span> 지혜의 석판 읽기
+                    </button>
+                    <button onclick="showScreen('intro')" class="w-full py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-2xl font-bold text-lg transition-all shadow-lg">
+                        🔄 게임 다시하기
+                    </button>
+                    <button onclick="goToWorldMap()" class="w-full py-3 bg-gradient-to-r from-purple-600 to-sky-600 hover:from-purple-500 hover:to-sky-500 text-white rounded-2xl font-bold text-lg transition-all shadow-lg">
+                        🗺️ 모험의 지도 펼치기
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -217,6 +232,11 @@
                 videoBtn.classList.remove('btn-disabled');
                 videoBtn.innerText = "📖 지혜의 석판 읽기 (완료)";
             }
+        }
+
+        // --- 월드맵 이동 함수 ---
+        function goToWorldMap() {
+            window.location.href = 'https://wontheworld.netlify.app/';
         }
 
         // --- 게임 로직 ---
@@ -322,8 +342,6 @@
             isCleared = true;
             document.getElementById('victoryModal').classList.remove('hidden');
         }
-
-        document.getElementById('btn-back-to-square').onclick = () => window.location.href = 'https://wontheworld.netlify.app/';
 
         // --- Manim 스타일 영상 로직 ---
         const vCanvas = document.getElementById('video-canvas');
