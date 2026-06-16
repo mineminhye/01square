@@ -133,8 +133,14 @@
                     <h1 class="text-2xl font-bold text-slate-800">시작의 광장</h1>
                     <p class="text-[10px] text-slate-400 italic">"원은 한 정점으로부터 같은 거리에 있는 점들의 집합"</p>
                 </div>
-                <div id="turn-badge" class="px-4 py-1 rounded-full font-bold text-white bg-green-500 text-sm">
-                    용사의 턴
+                <div class="flex items-center gap-2">
+                    <div id="turn-badge" class="px-4 py-1 rounded-full font-bold text-white bg-green-500 text-sm">
+                        용사의 턴
+                    </div>
+                    <button onclick="confirmExit()" title="나가기"
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-100 text-slate-400 hover:text-red-500 font-bold text-lg transition-colors border border-slate-200 hover:border-red-300">
+                        ✕
+                    </button>
                 </div>
             </div>
 
@@ -572,6 +578,12 @@
             isGameOver = true;
             isCleared = true;
             document.getElementById('victoryModal').classList.remove('hidden');
+        }
+
+        function confirmExit() {
+            if (confirm('게임을 중단하고 나가시겠습니까?\n진행 중인 게임은 저장되지 않습니다.')) {
+                showScreen('intro');
+            }
         }
 
         function restartFromVictory() {
