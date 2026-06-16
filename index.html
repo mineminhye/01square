@@ -190,9 +190,23 @@
                     <p class="text-[10px] text-sky-600 font-bold mt-4 uppercase tracking-widest">Definition of Circle</p>
                 </div>
 
-                <button id="btn-back-to-square" class="w-full py-5 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold text-xl transition-all shadow-lg shadow-sky-200">
-                    광장으로
-                </button>
+                <div class="flex flex-col gap-3">
+                    <!-- 모험의 지도 -->
+                    <a href="https://wontheworld.netlify.app/" target="_blank"
+                        class="w-full py-4 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-sky-200 flex items-center justify-center gap-2">
+                        🗺️ 모험의 지도 펼치기
+                    </a>
+                    <!-- 지혜의 석판 보기 -->
+                    <button id="btn-victory-video" onclick="openTabletVideo()"
+                        class="w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-amber-200 flex items-center justify-center gap-2">
+                        📜 지혜의 석판 보기
+                    </button>
+                    <!-- 게임 다시 하기 -->
+                    <button onclick="restartFromVictory()"
+                        class="w-full py-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2">
+                        🔄 게임 다시 하기
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -560,7 +574,15 @@
             document.getElementById('victoryModal').classList.remove('hidden');
         }
 
-        document.getElementById('btn-back-to-square').onclick = () => showScreen('intro');
+        function restartFromVictory() {
+            document.getElementById('victoryModal').classList.add('hidden');
+            showScreen('game');
+        }
+
+        function openTabletVideo() {
+            // 유튜브 링크 미연결 상태 안내
+            alert('📜 지혜의 석판\n\n유튜브 링크가 아직 연결되지 않았습니다.\n곧 업데이트됩니다!');
+        }
 
         // --- Manim 스타일 영상 ---
         const vCanvas = document.getElementById('video-canvas');
