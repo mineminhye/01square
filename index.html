@@ -94,6 +94,16 @@
         #btn-cancel {
             display: none;
         }
+        @keyframes toastIn {
+            from { opacity:0; transform:scale(0.88); }
+            to   { opacity:1; transform:scale(1); }
+        }
+        @keyframes toastOut {
+            from { opacity:1; transform:scale(1); }
+            to   { opacity:0; transform:scale(0.88); }
+        }
+        #toast-box { animation: toastIn 0.25s ease; }
+        #toast-box.hiding { animation: toastOut 0.3s ease forwards; }
     </style>
 </head>
 <body>
@@ -148,6 +158,13 @@
                 </div>
             </div>
 
+            <!-- 턴 안내 토스트 -->
+            <div id="toast" class="hidden fixed inset-0 z-40 flex items-center justify-center pointer-events-none">
+                <div id="toast-box" class="bg-slate-900/90 text-white rounded-2xl px-8 py-5 shadow-2xl border border-sky-400/40 text-center max-w-xs pointer-events-none">
+                    <div id="toast-msg" class="text-base font-bold leading-relaxed"></div>
+                </div>
+            </div>
+
             <div class="relative">
                 <canvas id="gameCanvas" width="600" height="600"></canvas>
                 
@@ -168,18 +185,18 @@
                     <hr class="my-4">
                     <h3 class="font-bold text-slate-700 text-[10px] uppercase mb-2">조작 가이드</h3>
                     <ul class="text-[10px] text-slate-500 space-y-1 list-disc list-inside">
-                        <li>내 영역 격자점 클릭: <b>중심</b></li>
-                        <li>마우스 이동: <b>반지름</b></li>
-                        <li><b>더블 클릭</b>: <b>완성</b></li>
-                        <li>중심 선택 후 <b>수정</b> 가능</li>
+                        <li>내 영역 격자점 <b>클릭</b>: 중심 설정</li>
+                        <li>중심에서 <b>드래그</b>: 반지름 조절</li>
+                        <li><b>드래그 후 놓기</b>: 원 확정</li>
+                        <li>중심에서 <b>더블클릭</b>: 중심 취소</li>
                     </ul>
 
                     <div id="status-msg" class="bg-slate-50 p-2 rounded border border-slate-100 text-[10px] mt-4 text-slate-600">
                         내 영역 격자점을 클릭하세요.
                     </div>
 
-                    <!-- 수정하기 버튼 -->
-                    <button id="btn-cancel" onclick="cancelCenter()"
+                    <!-- 수정하기 버튼 (더블클릭으로 대체 - 숨김) -->
+                    <button id="btn-cancel" onclick="cancelCenter()" style="display:none"
                         class="mt-3 w-full py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-[11px] font-bold border border-red-300 transition-colors">
                         ✕ 중심 다시 선택
                     </button>
@@ -274,10 +291,13 @@
             selectedCenter = null;
             previewRadius = 0;
             isGameOver = false;
+            toastShownOnce = false;
+            combatToastShown = false;
             document.getElementById('victoryModal').classList.add('hidden');
             document.getElementById('btn-cancel').style.display = 'none';
             setStatus('내 영역의 격자점을 클릭하여 중심을 선택하세요.');
             render();
+            setTimeout(showPlayerTurnToast, 400);
         }
 
         function generateSwamps() {
@@ -346,19 +366,49 @@
         // 원 확정 전 종합 유효성 검사 (player용)
         function validateCircle(cx, cy, r, owner) {
             if (r < 0.3) return { ok: false, msg: '반지름이 너무 작습니다.' };
-            if (circleOutOfBounds(cx, cy, r)) return { ok: false, msg: '원이 게임판 밖으로 나갑니다.' };
-            if (circleOverlapsSwamp(cx, cy, r)) return { ok: false, msg: '원이 늪을 통과합니다.' };
+            if (circleOutOfBounds(cx, cy, r)) return { ok: false, msg: '원이 전장 밖으로 나갑니다.' };
+            if (circleOverlapsSwamp(cx, cy, r)) return { ok: false, msg: '원이 늪(장애물)에 닿습니다.' };
             return { ok: true };
         }
 
-        // --- 이벤트 ---
+        // --- 토스트 안내 ---
+        let toastTimer = null;
+        function showToast(lines, duration = 2200, style = 'dark') {
+            const toast = document.getElementById('toast');
+            const box   = document.getElementById('toast-box');
+            const msg   = document.getElementById('toast-msg');
+            if (toastTimer) { clearTimeout(toastTimer); box.classList.remove('hiding'); }
+            msg.innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+            // 경고(warn) 스타일
+            if (style === 'warn') {
+                box.style.background = 'rgba(220,38,38,0.92)';
+                box.style.borderColor = 'rgba(255,100,100,0.5)';
+            } else {
+                box.style.background = 'rgba(15,23,42,0.90)';
+                box.style.borderColor = 'rgba(56,189,248,0.4)';
+            }
+            toast.classList.remove('hidden');
+            box.classList.remove('hiding');
+            toastTimer = setTimeout(() => {
+                box.classList.add('hiding');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, duration);
+        }
 
+        // --- 이벤트 ---
+        let isDragging = false;   // mousedown 후 mousemove 발생 여부
+        let toastShownOnce = false; // 첫 턴 안내 토스트 1회만
+        let combatToastShown = false; // 교전 안내 토스트 1회만
+
+        // ① 클릭/터치 → 중심 설정  |  더블클릭 → 중심 취소
         canvas.addEventListener('mousedown', (e) => {
             if (currentTurn !== 'player' || isGameOver) return;
-            const rect = canvas.getBoundingClientRect();
-            const { mx, my } = canvasToGrid(e.clientX - rect.left, e.clientY - rect.top);
+            if (e.detail === 2) return;   // 더블클릭의 두 번째 mousedown 무시
+            isDragging = false;
 
             if (gameState === 'SELECT_CENTER') {
+                const rect = canvas.getBoundingClientRect();
+                const { mx, my } = canvasToGrid(e.clientX - rect.left, e.clientY - rect.top);
                 if (!isInBounds(mx, my)) {
                     setStatus('⚠️ 격자판 안의 격자점을 선택하세요.');
                     return;
@@ -369,35 +419,60 @@
                 }
                 selectedCenter = { mx, my };
                 gameState = 'SELECT_RADIUS';
-                document.getElementById('btn-cancel').style.display = 'block';
-                setStatus(`중심 (${mx}, ${my}) 선택됨. 마우스를 움직여 반지름을 조절하고 더블클릭으로 확정!`);
+                setStatus(`중심 (${mx}, ${my}) 설정됨 — 드래그하여 반지름을 정하세요.`);
                 render();
             }
         });
 
+        // ② 더블클릭 → 중심 취소
+        canvas.addEventListener('dblclick', (e) => {
+            if (currentTurn !== 'player' || isGameOver) return;
+            if (gameState === 'SELECT_RADIUS') {
+                cancelCenter();
+            }
+        });
+
+        // ③ 드래그 중 → 반지름 미리보기
         canvas.addEventListener('mousemove', (e) => {
             if (gameState !== 'SELECT_RADIUS' || !selectedCenter) return;
+            isDragging = true;
             const rect = canvas.getBoundingClientRect();
             const fx = (e.clientX - rect.left) / CELL;
             const fy = GRID - (e.clientY - rect.top) / CELL;
             previewRadius = getDist(selectedCenter.mx, selectedCenter.my, fx, fy);
 
-            // 실시간 경고 표시
-            const v = validateCircle(selectedCenter.mx, selectedCenter.my, previewRadius, 'player');
-            if (!v.ok) {
-                setStatus('⚠️ ' + v.msg + ' (조정 필요)');
+            const outOfBounds   = circleOutOfBounds(selectedCenter.mx, selectedCenter.my, previewRadius);
+            const hitsSwamp     = circleOverlapsSwamp(selectedCenter.mx, selectedCenter.my, previewRadius);
+
+            if (hitsSwamp) {
+                setStatus('⚠️ 장애물에 닿았습니다.');
+                showWarnOnce('⛔ 장애물에 닿았습니다!');
+            } else if (outOfBounds) {
+                setStatus('⚠️ 전장을 벗어났습니다.');
+                showWarnOnce('⛔ 전장을 벗어났습니다!');
             } else {
-                setStatus(`중심 (${selectedCenter.mx}, ${selectedCenter.my}), 반지름 ${previewRadius.toFixed(2)} — 더블클릭으로 확정!`);
+                clearWarn();
+                setStatus(`중심 (${selectedCenter.mx}, ${selectedCenter.my}), 반지름 ${previewRadius.toFixed(2)} — 놓으면 원이 만들어져요!`);
             }
             render();
         });
 
-        canvas.addEventListener('dblclick', () => {
-            if (gameState !== 'SELECT_RADIUS' || isGameOver) return;
+        // ④ 마우스 놓기 → 원 확정 (드래그가 있었을 때만)
+        canvas.addEventListener('mouseup', (e) => {
+            if (currentTurn !== 'player' || isGameOver) return;
+            if (gameState !== 'SELECT_RADIUS' || !selectedCenter) return;
+            if (!isDragging) return;   // 단순 클릭(중심 설정)은 무시
+            isDragging = false;
 
             const v = validateCircle(selectedCenter.mx, selectedCenter.my, previewRadius, 'player');
             if (!v.ok) {
-                setStatus('❌ ' + v.msg + ' 반지름을 다시 조절하세요.');
+                if (v.msg.includes('늪')) {
+                    setStatus('❌ 장애물에 닿았습니다 — 다시 드래그하세요.');
+                    showToast(['⛔ 장애물에 닿았습니다!', '반지름을 조절하여 다시 시도하세요.'], 2000, 'warn');
+                } else {
+                    setStatus('❌ 전장을 벗어났습니다 — 다시 드래그하세요.');
+                    showToast(['⛔ 전장을 벗어났습니다!', '반지름을 줄여 다시 시도하세요.'], 2000, 'warn');
+                }
                 return;
             }
 
@@ -426,7 +501,17 @@
             render();
         });
 
-        // 중심 선택 취소 (수정하기 버튼)
+        // 경고 토스트 — 드래그 중 중복 방지용
+        let warnShowing = false;
+        function showWarnOnce(msg) {
+            if (warnShowing) return;
+            warnShowing = true;
+            showToast([msg], 1200, 'warn');
+            setTimeout(() => { warnShowing = false; }, 1200);
+        }
+        function clearWarn() { warnShowing = false; }
+
+        // 중심 선택 취소
         function cancelCenter() {
             if (gameState !== 'SELECT_RADIUS') return;
             cancelCenterUI();
@@ -437,7 +522,8 @@
         function cancelCenterUI() {
             selectedCenter = null;
             previewRadius = 0;
-            document.getElementById('btn-cancel').style.display = 'none';
+            isDragging = false;
+            clearWarn();
             setStatus('내 영역의 격자점을 클릭하여 중심을 선택하세요.');
         }
 
@@ -497,7 +583,42 @@
             document.getElementById('turn-badge').innerText = "용사의 턴";
             document.getElementById('turn-badge').className = "px-4 py-1 rounded-full font-bold text-white bg-green-500 text-sm";
             setStatus('내 영역의 격자점을 클릭하여 중심을 선택하세요.');
+            showPlayerTurnToast();
+            checkCombatProximity();
             render();
+        }
+
+        // AI 원과의 거리가 2칸 이내일 때 교전 안내 1회 표시
+        function checkCombatProximity() {
+            if (combatToastShown) return;
+            const playerCircles = circles.filter(c => c.owner === 'player');
+            const aiCircles     = circles.filter(c => c.owner === 'ai');
+            for (const p of playerCircles) {
+                for (const a of aiCircles) {
+                    const dist = getDist(p.mx, p.my, a.mx, a.my) - p.r - a.r;
+                    if (dist <= 2) {
+                        combatToastShown = true;
+                        setTimeout(() => showToast([
+                            '⚔️ 상대방의 원이 가까워졌어요!',
+                            '🟢 상대 원과 <b>겹치게</b> 그리면 용사의 영역이 돼요.',
+                            '🔵 상대 원의 <b>중심을 덮으면</b> 그 원이 용사의 원이 돼요.',
+                            '🏆 상대 <b>본진의 중심을 덮으면</b> 용사의 승리!',
+                        ], 4000), 300);
+                        return;
+                    }
+                }
+            }
+        }
+
+        function showPlayerTurnToast() {
+            if (toastShownOnce) return;
+            toastShownOnce = true;
+            showToast([
+                '⚔️ 용사의 턴!',
+                '① 내 영역 격자점을 <b>클릭</b>하여 원의 중심을 정하세요.',
+                '② 드래그하여 반지름을 조절하고 <b>놓으면</b> 원이 만들어져요.',
+                '③ 중심을 취소하려면 중심점을 <b>더블클릭</b>하세요.',
+            ], 3500);
         }
 
         function shuffleArray(arr) {
@@ -505,6 +626,23 @@
                 const j = Math.floor(Math.random() * (i + 1));
                 [arr[i], arr[j]] = [arr[j], arr[i]];
             }
+        }
+
+        // --- 이스터에그 고양이 ---
+        const _catImg = new Image();
+        _catImg.src = 'data:image/png;base64,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';
+
+        function drawEasterCat(ctx) {
+            if (!_catImg.complete) return;
+            // 늪들의 무게중심 사이 빈 공간
+            const cx_avg = swamps.reduce((s, sw) => s + (sw.mx + sw.mw/2), 0) / swamps.length;
+            const cy_avg = swamps.reduce((s, sw) => s + (sw.my + sw.mh/2), 0) / swamps.length;
+            const p = mathToCanvas(cx_avg, cy_avg);
+            const size = 36; // 캔버스 픽셀 크기
+            ctx.save();
+            ctx.globalAlpha = 0.22; // 살짝 투명하게 — 이스터에그니까
+            ctx.drawImage(_catImg, p.x - size/2 + 12, p.y - size/2 - 8, size, size);
+            ctx.restore();
         }
 
         // --- 렌더링 ---
@@ -523,6 +661,11 @@
                 ctx.fillText('늪', p.x + s.mw * CELL / 2, p.y + s.mh * CELL / 2 + 4);
                 ctx.fillStyle = 'rgba(100, 116, 139, 0.7)';
             });
+
+            // 🐱 이스터에그 고양이 실루엣 (늪들의 무게중심 사이)
+            if (swamps.length >= 2) {
+                drawEasterCat(ctx);
+            }
 
             // 원 그리기
             circles.forEach(c => {
